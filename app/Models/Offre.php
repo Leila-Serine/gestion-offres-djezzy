@@ -19,4 +19,15 @@ class Offre extends Model
         'nom_offre',
         'categorie',
     ];
+    /**
+ * Lignes de commande dans lesquelles cette offre apparaît.
+ */
+public function lignesCommande()
+{
+    return $this->hasMany(
+        LigneCommande::class,
+        'id_offre',
+        'id_offre'
+    );
+}
 }

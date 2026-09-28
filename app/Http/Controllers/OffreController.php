@@ -7,7 +7,7 @@ use App\Models\Offre;
 use Illuminate\Http\Request;
 
 class OffreController extends Controller
-{public function __construct(
+{   public function __construct(
     private OffreService $offreService
 ) {
 }
@@ -46,13 +46,13 @@ class OffreController extends Controller
         ->with('success', 'Offre créée avec succès.');
 }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
-    {
-        //
-    }
+/**
+ * Affiche le détail d'une offre.
+ */
+public function show(Offre $offre)
+{
+    return view('offres.show', compact('offre'));
+}
 
     /**
      * Show the form for editing the specified resource.
