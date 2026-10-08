@@ -1,203 +1,336 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
+@extends('layouts.app')
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1"
-    >
+@section('title', 'Offres')
+@section('breadcrumb', 'Gestion des offres')
 
-    <title>Gestion des offres</title>
+@section('content')
 
-    <!-- Bootstrap 5 fournit les styles visuels de la page. -->
-    <link
-        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-        rel="stylesheet"
-    >
-</head>
+@php
+    $estCommercial = auth()->user()->role === 'commercial';
+@endphp
 
-<body class="bg-light">
-
-    <main class="container py-5">
-
-     <div class="d-flex justify-content-between align-items-center mb-4">
-
+<div class="listing-hero">
     <div>
-        <h1 class="h2">Gestion des offres</h1>
+        <div class="page-eyebrow">
+            Catalogue des offres
+        </div>
 
-        <p class="text-secondary mb-0">
-            Consultez les offres enregistrées.
+        <h1 class="page-title">
+            Offres
+        </h1>
+
+        <p class="page-subtitle">
+            @if ($estCommercial)
+                Gérez le catalogue, les tarifs et le cycle de vie des offres.
+            @else
+                Consultez les offres actuellement disponibles depuis votre espace client.
+            @endif
         </p>
     </div>
 
-    <div class="d-flex align-items-center gap-3">
-
-        <!-- Informations sur l'utilisateur connecté -->
-        <div class="text-end">
-            <div class="fw-semibold">
-                {{ auth()->user()->name }}
-            </div>
-
-            <small class="text-secondary">
-                {{ ucfirst(auth()->user()->role) }}
-            </small>
+    <div class="listing-actions">
+        <div class="listing-count">
+            <strong>{{ $offres->count() }}</strong>
+            <span>
+                {{ $estCommercial ? 'offres au total' : 'offres disponibles' }}
+            </span>
         </div>
 
-        <!-- Seul le commercial peut ajouter une offre -->
-        @if (auth()->user()->role === 'commercial')
+        @if ($estCommercial && Route::has('offres.create'))
             <a
                 href="{{ route('offres.create') }}"
-                class="btn btn-primary"
+                class="btn btn-djezzy px-4"
             >
+                <i class="bi bi-plus-lg me-2"></i>
                 Ajouter une offre
             </a>
         @endif
+    </div>
+</div>
 
-        <!-- Déconnexion -->
-        <form
-            method="POST"
-            action="{{ route('logout') }}"
-            class="mb-0"
-        >
-            @csrf
 
-            <button
-                type="submit"
-                class="btn btn-outline-secondary"
+<div class="app-card overflow-hidden">
+
+    <div class="section-header">
+        <div>
+            <h2 class="section-title">
+                Liste des offres
+            </h2>
+
+            <p class="section-subtitle mb-0">
+                {{ $offres->count() }}
+                {{ $offres->count() > 1 ? 'offres enregistrées' : 'offre enregistrée' }}
+            </p>
+        </div>
+
+        <div style="min-width: 240px;">
+            <label
+                for="rechercheOffre"
+                class="visually-hidden"
             >
-                Déconnexion
-            </button>
-        </form>
+                Rechercher une offre
+            </label>
 
+            <div class="position-relative">
+                <i
+                    class="bi bi-search position-absolute"
+                    style="left: 14px; top: 50%; transform: translateY(-50%);"
+                ></i>
+
+                <input
+                    id="rechercheOffre"
+                    type="search"
+                    class="form-control ps-5"
+                    placeholder="Rechercher une offre..."
+                >
+            </div>
+        </div>
+    </div>
+
+
+    <div class="table-responsive">
+        <table class="table app-table responsive-table mb-0">
+            <thead>
+                <tr>
+                    <th>Référence</th>
+                    <th>Offre</th>
+                    <th>Catégorie</th>
+                    <th>Tarif</th>
+
+                    @if ($estCommercial)
+                        <th>Statut</th>
+                    @endif
+
+                    <th>Créée le</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+
+            <tbody id="offresTableBody">
+                @forelse ($offres as $offre)
+                    <tr
+                        class="data-row offre-row"
+                        data-search="{{ strtolower($offre->nom_offre . ' ' . $offre->categorie . ' ' . $offre->statut) }}"
+                    >
+                        <td data-label="Référence">
+                            <span class="text-value">
+                                #{{ $offre->id_offre }}
+                            </span>
+                        </td>
+
+                        <td
+                            data-label="Offre"
+                            class="primary-cell"
+                        >
+                            <div class="item-identity">
+                                <span class="item-icon">
+                                    <i class="bi bi-sim"></i>
+                                </span>
+
+                                <div>
+                                    <div class="item-name">
+                                        {{ $offre->nom_offre }}
+                                    </div>
+
+                                    <div class="item-caption">
+                                        Offre Djezzy
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+
+                        <td data-label="Catégorie">
+                            <span class="category-badge">
+                                {{ $offre->categorie }}
+                            </span>
+                        </td>
+
+                        <td data-label="Tarif">
+                            <span class="text-value">
+                                {{ number_format((float) $offre->prix, 2, ',', ' ') }} DA
+                            </span>
+                        </td>
+
+                        @if ($estCommercial)
+                            <td data-label="Statut">
+                                @if ($offre->statut === 'active')
+                                    <span class="status-pill status-done">
+                                        Active
+                                    </span>
+                                @else
+                                    <span class="status-pill status-wait">
+                                        Suspendue
+                                    </span>
+                                @endif
+                            </td>
+                        @endif
+
+                        <td data-label="Créée le">
+                            <div class="muted-value">
+                                <div>
+                                    {{ $offre->created_at?->format('d/m/Y') }}
+                                </div>
+
+                                <div>
+                                    {{ $offre->created_at?->format('H:i') }}
+                                </div>
+                            </div>
+                        </td>
+
+                        <td
+                            data-label="Actions"
+                            class="actions-cell text-end"
+                        >
+                            <div class="d-flex justify-content-end gap-2">
+                                <a
+                                    href="{{ route('offres.show', $offre) }}"
+                                    class="btn btn-soft btn-sm"
+                                >
+                                    <i class="bi bi-eye me-1"></i>
+                                    Voir
+                                </a>
+
+                                @if ($estCommercial)
+                                    <a
+                                        href="{{ route('offres.edit', $offre) }}"
+                                        class="btn btn-outline-djezzy btn-sm"
+                                    >
+                                        <i class="bi bi-pencil me-1"></i>
+                                        Modifier
+                                    </a>
+
+                                    @if ($offre->statut === 'active')
+                                        <form
+                                            method="POST"
+                                            action="{{ route('offres.update', $offre) }}"
+                                            class="d-inline"
+                                            onsubmit="return confirm('Suspendre cette offre ? Elle ne sera plus visible par les clients.');"
+                                        >
+                                            @csrf
+                                            @method('PUT')
+
+                                            <input
+                                                type="hidden"
+                                                name="action_statut"
+                                                value="suspendre"
+                                            >
+
+                                            <button
+    type="submit"
+    class="btn btn-sm"
+    style="
+        border: 1px solid #d99a00;
+        color: #8a5a00;
+        background: #fff8e6;
+        font-weight: 600;
+    "
+>
+    <i class="bi bi-pause-circle me-1"></i>
+    Suspendre
+</button>
+                                        </form>
+                                    @else
+                                        <form
+                                            method="POST"
+                                            action="{{ route('offres.update', $offre) }}"
+                                            class="d-inline"
+                                        >
+                                            @csrf
+                                            @method('PUT')
+
+                                            <input
+                                                type="hidden"
+                                                name="action_statut"
+                                                value="reactiver"
+                                            >
+
+                                            <button
+                                                type="submit"
+                                                class="btn btn-success btn-sm"
+                                            >
+                                                <i class="bi bi-play-circle me-1"></i>
+                                                Réactiver
+                                            </button>
+                                        </form>
+                                    @endif
+
+                                    @if ((int) $offre->lignes_commande_count === 0)
+                                        <form
+                                            method="POST"
+                                            action="{{ route('offres.destroy', $offre) }}"
+                                            class="d-inline"
+                                            onsubmit="return confirm('Voulez-vous vraiment supprimer cette offre ?');"
+                                        >
+                                            @csrf
+                                            @method('DELETE')
+
+                                            <button
+                                                type="submit"
+                                                class="btn btn-outline-danger btn-sm"
+                                                title="Supprimer"
+                                                aria-label="Supprimer {{ $offre->nom_offre }}"
+                                            >
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    @endif
+                                @endif
+                            </div>
+                        </td>
+                    </tr>
+                @empty
+                    <tr class="empty-row">
+                        <td
+                            colspan="{{ $estCommercial ? 7 : 6 }}"
+                            class="text-center py-5"
+                        >
+                            <div class="empty-state py-3">
+                                <div class="empty-icon">
+                                    <i class="bi bi-grid"></i>
+                                </div>
+
+                                <h3>Aucune offre</h3>
+
+                                <p>
+                                    Aucune offre n'est disponible pour le moment.
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
     </div>
 
 </div>
 
-        <!-- Message affiché après une opération réussie. -->
-        @if (session('success'))
-            <div class="alert alert-success">
-                {{ session('success') }}
-            </div>
-        @endif
+@endsection
 
-        <div class="card shadow-sm">
 
-            <div class="card-body">
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const input = document.getElementById('rechercheOffre');
+    const rows = document.querySelectorAll('.offre-row');
 
-                <div class="table-responsive">
+    if (!input) {
+        return;
+    }
 
-                    <table class="table table-hover align-middle mb-0">
+    input.addEventListener('input', function () {
+        const recherche = input.value
+            .toLowerCase()
+            .trim();
 
-                        <thead class="table-light">
-                            <tr>
-                                <th>Identifiant</th>
-                                <th>Nom de l'offre</th>
-                                <th>Catégorie</th>
-                                <th>Date de création</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
+        rows.forEach(function (row) {
+            const texte = row.dataset.search || '';
 
-                        <tbody>
-
-                            @forelse ($offres as $offre)
-
-                                <tr>
-
-                                    <td>
-                                        {{ $offre->id_offre }}
-                                    </td>
-
-                                    <td>
-                                        {{ $offre->nom_offre }}
-                                    </td>
-
-                                    <td>
-                                        {{ $offre->categorie }}
-                                    </td>
-
-                                    <td>
-                                        {{ $offre->created_at?->timezone('Africa/Algiers')->format('d/m/Y H:i') }}
-                                    </td>
-
-                                    <td>
-
-                                        <div class="d-flex gap-2">
-
-                                            <!--
-                                                Client et commercial peuvent
-                                                consulter une offre.
-                                            -->
-                                            <a
-                                                href="{{ route('offres.show', $offre->id_offre) }}"
-                                                class="btn btn-sm btn-outline-secondary"
-                                            >
-                                                Voir
-                                            </a>
-
-                                            <!--
-                                                Les actions de gestion sont
-                                                réservées au commercial.
-                                            -->
-                                            @if (auth()->user()->role === 'commercial')
-
-                                                <a
-                                                    href="{{ route('offres.edit', $offre->id_offre) }}"
-                                                    class="btn btn-sm btn-outline-primary"
-                                                >
-                                                    Modifier
-                                                </a>
-
-                                                <form
-                                                    action="{{ route('offres.destroy', $offre->id_offre) }}"
-                                                    method="POST"
-                                                    onsubmit="return confirm('Voulez-vous vraiment supprimer cette offre ?');"
-                                                >
-                                                    @csrf
-                                                    @method('DELETE')
-
-                                                    <button
-                                                        type="submit"
-                                                        class="btn btn-sm btn-outline-danger"
-                                                    >
-                                                        Supprimer
-                                                    </button>
-
-                                                </form>
-
-                                            @endif
-
-                                        </div>
-
-                                    </td>
-
-                                </tr>
-
-                            @empty
-
-                                <tr>
-                                    <td
-                                        colspan="5"
-                                        class="text-center text-secondary py-4"
-                                    >
-                                        Aucune offre n'est enregistrée pour le moment.
-                                    </td>
-                                </tr>
-
-                            @endforelse
-
-                        </tbody>
-
-                    </table>
-
-                </div>
-
-            </div>
-
-        </div>
-
-    </main>
-
-</body>
-</html>
+            row.style.display =
+                texte.includes(recherche)
+                    ? ''
+                    : 'none';
+        });
+    });
+});
+</script>
+@endpush

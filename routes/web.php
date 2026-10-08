@@ -11,6 +11,11 @@ use App\Jobs\SendVerificationEmail;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ReclamationController;
+use App\Http\Controllers\CommercialCommandeController;
+use App\Http\Controllers\CommercialReclamationController;
+use App\Http\Controllers\NotificationController;
+
 
 
 /*
@@ -60,6 +65,24 @@ Route::post('/register', [RegisterController::class, 'store'])
 */
 
 Route::middleware('auth')->group(function () {
+
+/*
+     * Notifications.
+     */
+    Route::middleware('auth')->group(function () {
+
+    Route::post(
+        '/notifications/{notification}/read',
+        [NotificationController::class, 'read']
+    )->name('notifications.read');
+
+
+    Route::post(
+        '/notifications/read-all',
+        [NotificationController::class, 'readAll']
+    )->name('notifications.read-all');
+
+});
 
     /*
     |--------------------------------------------------------------------------
@@ -189,6 +212,70 @@ Route::middleware('auth')->group(function () {
         Route::delete('/offres/{offre}', [OffreController::class, 'destroy'])
             ->whereNumber('offre')
             ->name('offres.destroy');
+
+            Route::get(
+    '/commercial/commandes',
+
+    [CommercialCommandeController::class, 'index']
+
+
+    )->name('commercial.commandes.index');
+
+Route::get(
+    '/commercial/commandes/{commande}',
+    [CommercialCommandeController::class, 'show']
+)
+    ->whereNumber('commande')
+    ->name('commercial.commandes.show');
+
+Route::post(
+    '/commercial/commandes/{commande}/valider',
+    [
+        CommercialCommandeController::class,
+        'validateCommande',
+    ]
+)
+    ->whereNumber('commande')
+    ->name('commercial.commandes.validate');
+
+Route::post(
+    '/commercial/commandes/{commande}/refuser',
+    [
+        CommercialCommandeController::class,
+        'refuseCommande',
+    ]
+)
+    ->whereNumber('commande')
+    ->name('commercial.commandes.refuse');
+
+
+
+
+    Route::get(
+    '/commercial/reclamations',
+    [CommercialReclamationController::class, 'index']
+)->name('commercial.reclamations.index');
+
+Route::get(
+    '/commercial/reclamations/{reclamation}',
+    [CommercialReclamationController::class, 'show']
+)
+    ->whereNumber('reclamation')
+    ->name('commercial.reclamations.show');
+
+Route::post(
+    '/commercial/reclamations/{reclamation}/messages',
+    [CommercialReclamationController::class, 'storeMessage']
+)
+    ->whereNumber('reclamation')
+    ->name('commercial.reclamations.messages.store');
+
+Route::post(
+    '/commercial/reclamations/{reclamation}/resolve',
+    [CommercialReclamationController::class, 'resolve']
+)
+    ->whereNumber('reclamation')
+    ->name('commercial.reclamations.resolve');
     });
 
 
@@ -258,6 +345,10 @@ Route::middleware('auth')->group(function () {
         Route::delete('/boutiques/{boutique}', [BoutiqueController::class, 'destroy'])
             ->whereNumber('boutique')
             ->name('boutiques.destroy');
+            Route::get(
+    '/boutiques/{boutique}/document/{document}',
+    [BoutiqueController::class, 'document']
+)->name('boutiques.document');
 
 
         /*
@@ -278,5 +369,46 @@ Route::middleware('auth')->group(function () {
         Route::get('/commandes/{commande}', [CommandeController::class, 'show'])
             ->whereNumber('commande')
             ->name('commandes.show');
-    });
-});
+
+
+/*
+        |--------------------------------------------------------------------------
+        | Réclamations
+        |--------------------------------------------------------------------------     
+    */
+            Route::get(
+    '/reclamations',
+    [ReclamationController::class, 'index']
+)->name('reclamations.index');
+
+Route::get(
+    '/reclamations/create',
+    [ReclamationController::class, 'create']
+)->name('reclamations.create');
+
+Route::post(
+    '/reclamations',
+    [ReclamationController::class, 'store']
+)->name('reclamations.store');
+
+Route::get(
+    '/reclamations/{reclamation}',
+    [ReclamationController::class, 'show']
+)
+    ->whereNumber('reclamation')
+    ->name('reclamations.show');
+    }
+    );
+
+Route::post(
+    '/reclamations/{reclamation}/messages',
+    [ReclamationController::class, 'storeMessage']
+)
+    ->whereNumber('reclamation')
+    ->name('reclamations.messages.store');
+
+}
+
+
+);
+

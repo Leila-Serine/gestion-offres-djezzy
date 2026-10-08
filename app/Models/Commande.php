@@ -16,10 +16,21 @@ class Commande extends Model
      * ou de la modification d'une commande.
      */
     protected $fillable = [
-        'id_client',
-        'id_boutique',
-        'statut',
+    'id_client',
+    'id_boutique',
+    'statut',
+    'motif_statut',
+    'stock_reserve',
+    'montant_total',
+];
+
+protected function casts(): array
+{
+    return [
+        'stock_reserve' => 'boolean',
+        'montant_total' => 'decimal:2',
     ];
+}
 
     /**
      * Client ayant créé la commande.

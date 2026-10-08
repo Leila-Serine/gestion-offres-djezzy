@@ -40,11 +40,14 @@ class CommandeController extends Controller
         $client = $request->user();
 
         // Seulement les boutiques appartenant au client.
-        $boutiques = $this->boutiqueService
-            ->getByClient($client);
+      $boutiques = $this->boutiqueService
+    ->getByClient($client)
+    ->where('statut', 'active')
+    ->values();
 
-        // Catalogue des offres.
-        $offres = Offre::all();
+$offres = Offre::query()
+    ->where('statut', 'active')
+    ->get();
 
         return view(
             'commandes.create',
@@ -75,6 +78,7 @@ class CommandeController extends Controller
             'lignes.*.id_offre' => [
                 'required',
                 'integer',
+                'distinct',
                 'exists:offres,id_offre',
             ],
 
@@ -102,10 +106,10 @@ class CommandeController extends Controller
         }
 
         $this->commandeService->createForClient(
-            $client,
-            $boutique->id_boutique,
-            $validatedData['lignes']
-        );
+    $client,
+    $boutique,
+    $validatedData['lignes']
+);
 
         return redirect()
             ->route('commandes.index')

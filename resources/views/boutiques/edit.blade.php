@@ -1,130 +1,85 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+@extends('layouts.app')
 
-    <title>Modifier une boutique</title>
+@section('title', 'Modifier une boutique')
+@section('breadcrumb', 'Mes boutiques / Modifier')
 
-    <link
-        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-        rel="stylesheet"
-    >
-</head>
+@section('content')
 
-<body class="bg-light">
-
-<main class="container py-5">
-
-    <div class="mb-4">
-        <h1 class="h2">Modifier la boutique</h1>
-    </div>
-
-    <div class="card shadow-sm">
-
-        <div class="card-body">
-
-            <form
-                method="POST"
-                action="{{ route('boutiques.update', $boutique->id_boutique) }}"
-            >
-                @csrf
-                @method('PUT')
-
-                <div class="mb-3">
-
-                    <label for="nom_boutique" class="form-label">
-                        Nom de la boutique
-                    </label>
-
-                    <input
-                        type="text"
-                        id="nom_boutique"
-                        name="nom_boutique"
-                        class="form-control @error('nom_boutique') is-invalid @enderror"
-                        value="{{ old('nom_boutique', $boutique->nom_boutique) }}"
-                        required
-                    >
-
-                    @error('nom_boutique')
-                        <div class="invalid-feedback">
-                            {{ $message }}
-                        </div>
-                    @enderror
-
-                </div>
-
-                <div class="mb-3">
-
-                    <label for="wilaya" class="form-label">
-                        Wilaya
-                    </label>
-
-                    <input
-                        type="text"
-                        id="wilaya"
-                        name="wilaya"
-                        class="form-control @error('wilaya') is-invalid @enderror"
-                        value="{{ old('wilaya', $boutique->wilaya) }}"
-                        required
-                    >
-
-                    @error('wilaya')
-                        <div class="invalid-feedback">
-                            {{ $message }}
-                        </div>
-                    @enderror
-
-                </div>
-
-                <div class="mb-3">
-
-                    <label for="adresse" class="form-label">
-                        Adresse
-                    </label>
-
-                    <input
-                        type="text"
-                        id="adresse"
-                        name="adresse"
-                        class="form-control @error('adresse') is-invalid @enderror"
-                        value="{{ old('adresse', $boutique->adresse) }}"
-                        required
-                    >
-
-                    @error('adresse')
-                        <div class="invalid-feedback">
-                            {{ $message }}
-                        </div>
-                    @enderror
-
-                </div>
-
-                <div class="d-flex gap-2">
-
-                    <button
-                        type="submit"
-                        class="btn btn-primary"
-                    >
-                        Enregistrer les modifications
-                    </button>
-
-                    <a
-                        href="{{ route('boutiques.index') }}"
-                        class="btn btn-outline-secondary"
-                    >
-                        Annuler
-                    </a>
-
-                </div>
-
-            </form>
-
+<div class="page-heading">
+    <div>
+        <div class="page-eyebrow">
+            Mes boutiques
         </div>
 
+        <h1 class="page-title">
+            Modifier {{ $boutique->nom_boutique }}
+        </h1>
+
+        <p class="page-subtitle">
+            Mettez à jour les informations de votre boutique.
+        </p>
     </div>
 
-</main>
+    <div class="page-heading-actions">
+        <a
+            href="{{ route('boutiques.show', $boutique) }}"
+            class="btn btn-soft px-4"
+        >
+            <i class="bi bi-arrow-left me-2"></i>
+            Retour
+        </a>
+    </div>
+</div>
 
-</body>
-</html>
+
+<div class="app-card content-medium">
+
+    <div class="section-header">
+        <div>
+            <h2 class="section-title">
+                Informations de la boutique
+            </h2>
+
+            <p class="section-subtitle">
+                Coordonnées et justificatif du local
+            </p>
+        </div>
+
+        <span class="item-icon">
+            <i class="bi bi-shop"></i>
+        </span>
+    </div>
+
+
+    <form
+        method="POST"
+        action="{{ route('boutiques.update', $boutique) }}"
+        enctype="multipart/form-data"
+        class="section-body"
+    >
+        @csrf
+        @method('PUT')
+
+        @include('boutiques._form')
+
+        <div class="form-actions mt-4">
+            <button
+                type="submit"
+                class="btn btn-djezzy px-4"
+            >
+                <i class="bi bi-check-lg me-2"></i>
+                Enregistrer les modifications
+            </button>
+
+            <a
+                href="{{ route('boutiques.show', $boutique) }}"
+                class="btn btn-soft px-4"
+            >
+                Annuler
+            </a>
+        </div>
+    </form>
+
+</div>
+
+@endsection

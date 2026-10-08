@@ -1,0 +1,87 @@
+<?php
+
+namespace App\Support;
+
+final class Wilayas
+{
+    /**
+     * Liste utilisée par le prototype pour normaliser la wilaya
+     * d'une boutique et éviter les variantes de saisie libre.
+     *
+     * En 2026, l'organisation territoriale compte 69 wilayas.
+     */
+    public static function all(): array
+    {
+        return [
+            'Adrar',
+            'Chlef',
+            'Laghouat',
+            'Oum El Bouaghi',
+            'Batna',
+            'Béjaïa',
+            'Biskra',
+            'Béchar',
+            'Blida',
+            'Bouira',
+            'Tamanrasset',
+            'Tébessa',
+            'Tlemcen',
+            'Tiaret',
+            'Tizi Ouzou',
+            'Alger',
+            'Djelfa',
+            'Jijel',
+            'Sétif',
+            'Saïda',
+            'Skikda',
+            'Sidi Bel Abbès',
+            'Annaba',
+            'Guelma',
+            'Constantine',
+            'Médéa',
+            'Mostaganem',
+            "M'Sila",
+            'Mascara',
+            'Ouargla',
+            'Oran',
+            'El Bayadh',
+            'Illizi',
+            'Bordj Bou Arréridj',
+            'Boumerdès',
+            'El Tarf',
+            'Tindouf',
+            'Tissemsilt',
+            'El Oued',
+            'Khenchela',
+            'Souk Ahras',
+            'Tipaza',
+            'Mila',
+            'Aïn Defla',
+            'Naâma',
+            'Aïn Témouchent',
+            'Ghardaïa',
+            'Relizane',
+            'Timimoun',
+            'Bordj Badji Mokhtar',
+            'Ouled Djellal',
+            'Béni Abbès',
+            'In Salah',
+            'In Guezzam',
+            'Touggourt',
+            'Djanet',
+            "El M'Ghair",
+            'El Meniaa',
+            'Aflou',
+            'Barika',
+            'El Kantara',
+            'Bir El Ater',
+            'El Aricha',
+            'Ksar Chellala',
+            'Aïn Oussera',
+            'Messaâd',
+            'Ksar El Boukhari',
+            'Bou Saâda',
+            'El Abiodh Sidi Cheikh',
+        ];
+    }
+}

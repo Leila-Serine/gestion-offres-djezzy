@@ -130,8 +130,9 @@ $document = UploadedFile::fake()->create(
         'justificatif_local' => $document,
     ]);
 
-        $response->assertRedirect(route('boutiques.index'));
-
+      $response->assertRedirect(
+    route('boutiques.index')
+);
         $this->assertDatabaseHas('boutiques', [
             'id_client' => $client->id_user,
             'nom_boutique' => 'Nouvelle Boutique',
@@ -235,7 +236,9 @@ $document = UploadedFile::fake()->create(
                 ]
             );
 
-        $response->assertRedirect(route('boutiques.index'));
+        $response->assertRedirect(
+    route('boutiques.show', $boutique)
+);
 
         $this->assertDatabaseHas('boutiques', [
             'id_boutique' => $boutique->id_boutique,

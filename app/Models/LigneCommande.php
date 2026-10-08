@@ -3,28 +3,32 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class LigneCommande extends Model
 {
-    /**
-     * Clé primaire personnalisée de la table ligne_commandes.
-     */
+    protected $table = 'ligne_commandes';
+
     protected $primaryKey = 'id_ligne_commande';
 
-    /**
-     * Champs pouvant être remplis lors de la création
-     * ou de la modification d'une ligne de commande.
-     */
     protected $fillable = [
         'id_commande',
         'id_offre',
         'quantite',
+        'prix_unitaire',
+        'montant_ligne',
     ];
 
-    /**
-     * Commande à laquelle appartient cette ligne.
-     */
-    public function commande()
+    protected function casts(): array
+    {
+        return [
+            'quantite' => 'integer',
+            'prix_unitaire' => 'decimal:2',
+            'montant_ligne' => 'decimal:2',
+        ];
+    }
+
+    public function commande(): BelongsTo
     {
         return $this->belongsTo(
             Commande::class,
@@ -33,10 +37,7 @@ class LigneCommande extends Model
         );
     }
 
-    /**
-     * Offre concernée par cette ligne.
-     */
-    public function offre()
+    public function offre(): BelongsTo
     {
         return $this->belongsTo(
             Offre::class,

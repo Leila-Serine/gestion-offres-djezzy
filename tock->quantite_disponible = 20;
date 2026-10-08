@@ -1,0 +1,8 @@
+[90m= [39m[34;4mApp\Models\DisponibiliteOffre[39;24m {#8698
+    [34mid_disponibilite[39m: [35m1[39m,
+    [34mid_offre[39m: [35m7[39m,
+    [34mzone[39m: [32m"[39m[32mOran[39m[32m"[39m,
+    [34mquantite_disponible[39m: [35m20[39m,
+    [34mcreated_at[39m: [32m"[39m[32m2026-10-07 17:18:51[39m[32m"[39m,
+    [34mupdated_at[39m: [32m"[39m[32m2026-10-07 18:24:13[39m[32m"[39m,
+  }
