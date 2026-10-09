@@ -43,4 +43,7 @@
 @if ((int)$boutique->commandes_count > 0)
 <div class="note-panel mt-4"><i class="bi bi-info-circle me-2"></i>Cette boutique est liée à {{ $boutique->commandes_count }} {{ $boutique->commandes_count > 1 ? 'commandes' : 'commande' }}. Elle reste conservée dans l'historique.</div>
 @endif
+
+@include('boutiques.partials.validation-justificatif')
+
 @endsection
