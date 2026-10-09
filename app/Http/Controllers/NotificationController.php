@@ -4,108 +4,107 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Notifications\DatabaseNotification;
 
 class NotificationController extends Controller
 {
-    /**
-     * Marque une notification comme lue
-     * puis ouvre la ressource concernée.
-     */
     public function read(
         Request $request,
         string $notification
     ): RedirectResponse {
         $user = $request->user();
 
-        /*
-         * Sécurité :
-         * impossible de lire la notification
-         * d'un autre utilisateur.
-         */
-        $notificationModel =
-            DatabaseNotification::query()
-                ->where(
-                    'id',
-                    $notification
-                )
-                ->where(
-                    'notifiable_id',
-                    $user->id_user
-                )
-                ->where(
-                    'notifiable_type',
-                    $user::class
-                )
-                ->firstOrFail();
+        $notificationModel = $user
+            ->notifications()
+            ->where('id', $notification)
+            ->firstOrFail();
 
-        $notificationModel
-            ->markAsRead();
+        $notificationModel->markAsRead();
+
+        $data = $notificationModel->data;
 
         /*
-         * =============================
-         * NOTIFICATION DE COMMANDE
-         * =============================
+         * Validation des comptes clients.
          */
-        $idCommande =
-            $notificationModel
-                ->data['id_commande']
-            ?? null;
-
-        if ($idCommande) {
-
+        if (isset($data['id_client_validation'])) {
             if (
-                $user->role
-                === 'commercial'
+                $user->role === 'commercial'
+                && route_has(
+                    'commercial.clients.validation.show'
+                )
             ) {
                 return redirect()->route(
-                    'commercial.commandes.show',
-                    $idCommande
+                    'commercial.clients.validation.show',
+                    $data['id_client_validation']
                 );
             }
 
-            return redirect()->route(
-                'commandes.show',
-                $idCommande
-            );
+            if (
+                $user->role === 'client'
+                && route_has(
+                    'client.validation.status'
+                )
+            ) {
+                return redirect()->route(
+                    'client.validation.status'
+                );
+            }
         }
 
         /*
-         * =============================
-         * NOTIFICATION DE RÉCLAMATION
-         * =============================
+         * Commandes.
          */
-        $idReclamation =
-            $notificationModel
-                ->data['id_reclamation']
-            ?? null;
-
-        if ($idReclamation) {
-
+        if (isset($data['id_commande'])) {
             if (
-                $user->role
-                === 'commercial'
+                $user->role === 'commercial'
+                && route_has(
+                    'commercial.commandes.show'
+                )
             ) {
                 return redirect()->route(
-                    'commercial.reclamations.show',
-                    $idReclamation
+                    'commercial.commandes.show',
+                    $data['id_commande']
                 );
             }
 
-            return redirect()->route(
-                'reclamations.show',
-                $idReclamation
-            );
+            if (
+                route_has('commandes.show')
+            ) {
+                return redirect()->route(
+                    'commandes.show',
+                    $data['id_commande']
+                );
+            }
+        }
+
+        /*
+         * Réclamations.
+         */
+        if (isset($data['id_reclamation'])) {
+            if (
+                $user->role === 'commercial'
+                && route_has(
+                    'commercial.reclamations.show'
+                )
+            ) {
+                return redirect()->route(
+                    'commercial.reclamations.show',
+                    $data['id_reclamation']
+                );
+            }
+
+            if (
+                route_has('reclamations.show')
+            ) {
+                return redirect()->route(
+                    'reclamations.show',
+                    $data['id_reclamation']
+                );
+            }
         }
 
         return redirect()->back();
     }
 
-
-    /**
-     * Marque toutes les notifications
-     * comme lues.
-     */
     public function readAll(
         Request $request
     ): RedirectResponse {
@@ -115,5 +114,18 @@ class NotificationController extends Controller
             ->markAsRead();
 
         return redirect()->back();
+    }
+}
+
+/*
+ * Petit helper local au fichier pour éviter de provoquer
+ * une exception si une route optionnelle n'est pas encore chargée.
+ */
+if (! function_exists('route_has')) {
+    function route_has(string $name): bool
+    {
+        return app('router')
+            ->getRoutes()
+            ->getByName($name) !== null;
     }
 }

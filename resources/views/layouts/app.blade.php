@@ -91,6 +91,8 @@ a{color:var(--djezzy-red)}a:hover{color:var(--djezzy-red-dark)}
                     </a>
                 @endif
             @elseif (auth()->user()->role === 'commercial')
+
+                @include('layouts.partials.client-validation-navigation')
                 @if (Route::has('commercial.commandes.index'))
                     <a href="{{ route('commercial.commandes.index') }}" class="sidebar-link {{ request()->routeIs('commercial.commandes.*') ? 'active' : '' }}" @if(request()->routeIs('commercial.commandes.*')) aria-current="page" @endif>
                         <i class="bi bi-box-seam" aria-hidden="true"></i><span>Commandes clients</span>
@@ -175,6 +177,8 @@ a{color:var(--djezzy-red)}a:hover{color:var(--djezzy-red-dark)}
                         <a href="{{ route('reclamations.index') }}" class="sidebar-link {{ request()->routeIs('reclamations.*') ? 'active' : '' }}"><i class="bi bi-chat-left-text" aria-hidden="true"></i><span>Mes réclamations</span></a>
                     @endif
                 @elseif (auth()->user()->role === 'commercial')
+
+                @include('layouts.partials.client-validation-navigation')
                     @if (Route::has('commercial.commandes.index'))
                         <a href="{{ route('commercial.commandes.index') }}" class="sidebar-link {{ request()->routeIs('commercial.commandes.*') ? 'active' : '' }}"><i class="bi bi-box-seam" aria-hidden="true"></i><span>Commandes clients</span></a>
                     @endif
