@@ -14,7 +14,7 @@ return Application::configure(
     )
 
     ->withMiddleware(function (Middleware $middleware): void {
-
+$middleware->trustProxies(at: '*');
         $middleware->alias([
             'role' => \App\Http\Middleware\RoleMiddleware::class,
 
