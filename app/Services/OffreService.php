@@ -3,141 +3,201 @@
 namespace App\Services;
 
 use App\Models\Offre;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
 class OffreService
 {
+    public function search(array $filters = []): LengthAwarePaginator
+    {
+        $query = Offre::query()
+            ->with(['caracteristiques', 'disponibilites']);
+
+        if (auth()->check() && auth()->user()->role === 'client') {
+            $query->where('statut', 'active')
+                ->where(function ($q) {
+                    $q->whereNull('mode_stock_zero')
+                        ->orWhere('mode_stock_zero', '!=', 'masquee')
+                        ->orWhereHas('disponibilites', function ($stockQuery) {
+                            $stockQuery->where('quantite_disponible', '>', 0);
+                        });
+                });
+        }
+
+        if (!empty($filters['categorie'])) {
+            $query->where('categorie', $filters['categorie']);
+        }
+
+        if (($filters['prix_min'] ?? null) !== null && $filters['prix_min'] !== '') {
+            $query->where('prix', '>=', (float) $filters['prix_min']);
+        }
+
+        if (($filters['prix_max'] ?? null) !== null && $filters['prix_max'] !== '') {
+            $query->where('prix', '<=', (float) $filters['prix_max']);
+        }
+
+        $this->applyNumericCharacteristicFilter(
+            $query,
+            'internet',
+            $filters['internet_min'] ?? null,
+            $filters['internet_unite'] ?? null
+        );
+
+        $this->applyNumericCharacteristicFilter(
+            $query,
+            'duree',
+            $filters['duree_min'] ?? null,
+            $filters['duree_unite'] ?? null
+        );
+
+        if (!empty($filters['zone'])) {
+            $query->whereHas('disponibilites', function ($stockQuery) use ($filters) {
+                $stockQuery
+                    ->where('zone', $filters['zone'])
+                    ->where('quantite_disponible', '>', 0);
+            });
+        }
+
+        match ($filters['tri'] ?? null) {
+            'prix_asc' => $query->orderBy('prix'),
+            'prix_desc' => $query->orderByDesc('prix'),
+            'nom_asc' => $query->orderBy('nom_offre'),
+            'nom_desc' => $query->orderByDesc('nom_offre'),
+            default => $query->orderByDesc('id_offre'),
+        };
+
+        return $query->paginate(12)->withQueryString();
+    }
+
     public function create(array $data): Offre
     {
         return DB::transaction(function () use ($data) {
-            $caracteristiques = $data['caracteristiques'] ?? [];
-
-            unset($data['caracteristiques']);
-
-            /*
-             * Une nouvelle offre est active par défaut.
-             */
-            $data['statut'] = $data['statut'] ?? 'active';
-
-            $offre = Offre::create($data);
-
-            $this->syncCaracteristiques(
-                $offre,
-                $caracteristiques
-            );
-
-            return $offre;
-        });
-    }
-
-    public function update(
-        Offre $offre,
-        array $data
-    ): Offre {
-        return DB::transaction(function () use ($offre, $data) {
-            $caracteristiques = $data['caracteristiques'] ?? [];
-
-            unset($data['caracteristiques']);
-
-            $offre->update($data);
-
-            $this->syncCaracteristiques(
-                $offre,
-                $caracteristiques
-            );
-
-            return $offre->fresh([
-                'caracteristiques',
-                'disponibilites',
+            $offre = Offre::create([
+                'nom_offre' => $data['nom_offre'],
+                'categorie' => $data['categorie'],
+                'prix' => $data['prix'],
+                'statut' => $data['statut'] ?? 'active',
+                'mode_stock_zero' => $data['mode_stock_zero'],
             ]);
+
+            $this->syncCaracteristiques($offre, $data['caracteristiques'] ?? []);
+            $this->syncDisponibilites($offre, $data['disponibilites'] ?? []);
+
+            return $offre->load(['caracteristiques', 'disponibilites']);
         });
     }
 
-    /**
-     * Suspend une offre sans supprimer son historique.
-     */
-    public function suspendre(Offre $offre): Offre
+    public function update(Offre $offre, array $data): Offre
     {
-        $offre->update([
-            'statut' => 'suspendue',
-        ]);
+        return DB::transaction(function () use ($offre, $data) {
+            $offre->update([
+                'nom_offre' => $data['nom_offre'],
+                'categorie' => $data['categorie'],
+                'prix' => $data['prix'],
+                'statut' => $data['statut'] ?? $offre->statut,
+                'mode_stock_zero' => $data['mode_stock_zero'],
+            ]);
 
-        return $offre->fresh();
+            $this->syncCaracteristiques($offre, $data['caracteristiques'] ?? []);
+            $this->syncDisponibilites($offre, $data['disponibilites'] ?? []);
+
+            return $offre->load(['caracteristiques', 'disponibilites']);
+        });
     }
 
-    /**
-     * Réactive une offre suspendue.
-     */
-    public function reactiver(Offre $offre): Offre
+    public function delete(Offre $offre): void
     {
-        $offre->update([
-            'statut' => 'active',
-        ]);
-
-        return $offre->fresh();
-    }
-
-    /**
-     * Supprime une offre uniquement si elle n'a jamais
-     * été utilisée dans une commande.
-     */
-    public function delete(Offre $offre): bool
-    {
-        if ($offre->lignesCommande()->exists()) {
-            return false;
-        }
-
         DB::transaction(function () use ($offre) {
-            /*
-             * Les disponibilités régionales ne sont pas
-             * historisées séparément : elles peuvent être
-             * supprimées avec l'offre.
-             */
-            $offre->disponibilites()->delete();
-
-            /*
-             * Les caractéristiques appartiennent à l'offre.
-             */
             $offre->caracteristiques()->delete();
-
+            $offre->disponibilites()->delete();
             $offre->delete();
         });
-
-        return true;
     }
 
-    private function syncCaracteristiques(
-        Offre $offre,
-        array $caracteristiques
+    private function applyNumericCharacteristicFilter(
+        $query,
+        string $code,
+        mixed $min,
+        ?string $unite
     ): void {
-        $offre->caracteristiques()->delete();
+        if ($min === null || $min === '') {
+            return;
+        }
 
-        foreach ($caracteristiques as $index => $caracteristique) {
-            $libelle = trim(
-                (string) ($caracteristique['libelle'] ?? '')
-            );
-
-            $valeur = trim(
-                (string) ($caracteristique['valeur'] ?? '')
-            );
-
-            $unite = trim(
-                (string) ($caracteristique['unite'] ?? '')
-            );
+        $query->whereHas('caracteristiques', function ($characteristicQuery) use ($code, $min, $unite) {
+            $characteristicQuery
+                ->where('code', $code)
+                ->where('valeur_numerique', '>=', (float) $min);
 
             /*
-             * Une ligne incomplète est ignorée.
+             * Sans règle métier de conversion confirmée, on compare uniquement
+             * les valeurs exprimées dans la même unité.
              */
-            if ($libelle === '' || $valeur === '') {
+            if ($unite !== null && $unite !== '') {
+                $characteristicQuery->where('unite', $unite);
+            }
+        });
+    }
+
+    private function syncCaracteristiques(Offre $offre, array $rows): void
+    {
+        $offre->caracteristiques()->delete();
+
+        $definitions = config('offres.caracteristiques', []);
+
+        foreach (array_values($rows) as $index => $row) {
+            $code = $row['code'] ?? null;
+            $value = $row['valeur_numerique'] ?? null;
+            $unit = $row['unite'] ?? null;
+
+            if (!$code || $value === null || $value === '' || !isset($definitions[$code])) {
                 continue;
             }
 
+            $definition = $definitions[$code];
+            $allowedUnits = $definition['unites'] ?? [];
+
+            if (!$unit || !in_array($unit, $allowedUnits, true)) {
+                $unit = $definition['unite_defaut'] ?? ($allowedUnits[0] ?? null);
+            }
+
             $offre->caracteristiques()->create([
-                'libelle' => $libelle,
-                'valeur' => $valeur,
-                'unite' => $unite !== '' ? $unite : null,
-                'ordre' => $index,
+                'code' => $code,
+                'libelle' => $definition['label'],
+                'valeur' => (string) $value,
+                'valeur_numerique' => $value,
+                'unite' => $unit,
+                'ordre' => $index + 1,
             ]);
+        }
+    }
+
+    private function syncDisponibilites(Offre $offre, array $rows): void
+    {
+        $submittedZones = [];
+
+        foreach ($rows as $row) {
+            $zone = trim((string) ($row['zone'] ?? ''));
+            $quantity = $row['quantite_disponible'] ?? null;
+
+            if ($zone === '' || $quantity === null || $quantity === '') {
+                continue;
+            }
+
+            $submittedZones[] = $zone;
+
+            $offre->disponibilites()->updateOrCreate(
+                ['zone' => $zone],
+                ['quantite_disponible' => max(0, (int) $quantity)]
+            );
+        }
+
+        if ($submittedZones === []) {
+            $offre->disponibilites()->delete();
+        } else {
+            $offre->disponibilites()
+                ->whereNotIn('zone', array_unique($submittedZones))
+                ->delete();
         }
     }
 }

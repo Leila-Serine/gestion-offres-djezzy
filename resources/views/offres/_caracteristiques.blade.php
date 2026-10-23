@@ -1,144 +1,259 @@
 @php
-    // Après une erreur de validation, old() restaure exactement les lignes saisies.
-    // En modification, les caractéristiques enregistrées servent de valeurs initiales.
+    $definitionsCaracteristiques = config('offres.caracteristiques', []);
+
     $caracteristiquesForm = old(
         'caracteristiques',
         isset($offre)
-            ? $offre->caracteristiques->map(fn ($caracteristique) => [
-                'libelle' => $caracteristique->libelle,
-                'valeur' => $caracteristique->valeur,
-                'unite' => $caracteristique->unite,
-            ])->values()->toArray()
-            : [['libelle' => '', 'valeur' => '', 'unite' => '']]
+            ? $offre->caracteristiques->map(function ($caracteristique) use ($definitionsCaracteristiques) {
+                $code = $caracteristique->code;
+
+                return [
+                    'code' => $code,
+                    'valeur_numerique' => $caracteristique->valeur_numerique
+                        ?? $caracteristique->valeur,
+                    'unite' => $caracteristique->unite
+                        ?? ($definitionsCaracteristiques[$code]['unite_defaut'] ?? ''),
+                ];
+            })->values()->all()
+            : []
     );
 
-    // Ne jamais réutiliser un indice après suppression d'une ligne ou retour de validation.
-    $prochainIndex = count($caracteristiquesForm)
-        ? max(array_map('intval', array_keys($caracteristiquesForm))) + 1
-        : 0;
+    if (count($caracteristiquesForm) === 0) {
+        $caracteristiquesForm = [
+            [
+                'code' => 'internet',
+                'valeur_numerique' => '',
+                'unite' => $definitionsCaracteristiques['internet']['unite_defaut'] ?? 'Go',
+            ],
+            [
+                'code' => 'duree',
+                'valeur_numerique' => '',
+                'unite' => $definitionsCaracteristiques['duree']['unite_defaut'] ?? 'Jours',
+            ],
+        ];
+    }
 @endphp
 
-<div class="characteristics-field mb-4" aria-labelledby="characteristicsTitle">
-    <div class="characteristics-heading">
-        <div>
-            <h3 id="characteristicsTitle" class="characteristics-title">Caractéristiques de l'offre</h3>
-            <p class="characteristics-caption">Internet, appels, SMS, validité, crédit, etc.</p>
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+            <div>
+                <h2 class="h5 mb-1">Caractéristiques</h2>
+                <p class="text-muted small mb-0">
+                    Le type et l'unité sont sélectionnés dans des listes normalisées.
+                </p>
+            </div>
+
+            <button
+                type="button"
+                class="btn btn-outline-secondary btn-sm"
+                id="add-characteristic"
+            >
+                <i class="bi bi-plus-lg me-1"></i>
+                Ajouter
+            </button>
         </div>
-        <button type="button" class="btn btn-soft btn-sm" id="ajouterCaracteristique">
-            <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Ajouter
-        </button>
-    </div>
 
-    @error('caracteristiques')
-        <div class="alert alert-danger py-2 mb-3" role="alert">{{ $message }}</div>
-    @enderror
+        <div id="characteristics-container">
+            @foreach ($caracteristiquesForm as $index => $caracteristique)
+                @php
+                    $currentCode = $caracteristique['code'] ?? '';
+                    $availableUnits = $definitionsCaracteristiques[$currentCode]['unites'] ?? [];
+                    $currentUnit = $caracteristique['unite'] ?? '';
+                @endphp
 
-    <div id="caracteristiquesContainer" data-next-index="{{ $prochainIndex }}">
-        @foreach ($caracteristiquesForm as $index => $caracteristique)
-            <div class="caracteristique-row">
-                <div class="row g-3 align-items-end">
+                <div class="row g-2 align-items-end characteristic-row mb-2">
                     <div class="col-md-4">
-                        <label for="caracteristique_libelle_{{ $index }}" class="form-label">Caractéristique</label>
-                        <input type="text" id="caracteristique_libelle_{{ $index }}"
-                               name="caracteristiques[{{ $index }}][libelle]"
-                               value="{{ $caracteristique['libelle'] ?? '' }}" placeholder="Ex. Internet"
-                               class="form-control @error('caracteristiques.'.$index.'.libelle') is-invalid @enderror">
-                        @error('caracteristiques.'.$index.'.libelle')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        <label class="form-label fw-semibold">Type</label>
+
+                        <select
+                            class="form-select characteristic-code"
+                            name="caracteristiques[{{ $index }}][code]"
+                        >
+                            <option value="">Choisir...</option>
+
+                            @foreach ($definitionsCaracteristiques as $code => $definition)
+                                <option
+                                    value="{{ $code }}"
+                                    @selected($currentCode === $code)
+                                >
+                                    {{ $definition['label'] }}
+                                </option>
+                            @endforeach
+                        </select>
                     </div>
+
                     <div class="col-md-4">
-                        <label for="caracteristique_valeur_{{ $index }}" class="form-label">Valeur</label>
-                        <input type="text" id="caracteristique_valeur_{{ $index }}"
-                               name="caracteristiques[{{ $index }}][valeur]"
-                               value="{{ $caracteristique['valeur'] ?? '' }}" placeholder="Ex. 200"
-                               class="form-control @error('caracteristiques.'.$index.'.valeur') is-invalid @enderror">
-                        @error('caracteristiques.'.$index.'.valeur')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        <label class="form-label fw-semibold">Valeur</label>
+
+                        <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            class="form-control"
+                            name="caracteristiques[{{ $index }}][valeur_numerique]"
+                            value="{{ $caracteristique['valeur_numerique'] ?? '' }}"
+                            placeholder="Ex. 40"
+                        >
                     </div>
-                    <div class="col-md-3">
-                        <label for="caracteristique_unite_{{ $index }}" class="form-label">Unité</label>
-                        <input type="text" id="caracteristique_unite_{{ $index }}"
-                               name="caracteristiques[{{ $index }}][unite]"
-                               value="{{ $caracteristique['unite'] ?? '' }}" placeholder="Ex. Go"
-                               class="form-control @error('caracteristiques.'.$index.'.unite') is-invalid @enderror">
-                        @error('caracteristiques.'.$index.'.unite')<div class="invalid-feedback">{{ $message }}</div>@enderror
+
+                    <div class="col-md-2">
+                        <label class="form-label fw-semibold">Unité</label>
+
+                        <select
+                            class="form-select characteristic-unit"
+                            name="caracteristiques[{{ $index }}][unite]"
+                        >
+                            @foreach ($availableUnits as $unit)
+                                <option
+                                    value="{{ $unit }}"
+                                    @selected($currentUnit === $unit)
+                                >
+                                    {{ $unit }}
+                                </option>
+                            @endforeach
+                        </select>
                     </div>
-                    <div class="col-md-1">
-                        <button type="button" class="btn btn-soft text-danger w-100 supprimer-caracteristique"
-                                aria-label="Supprimer cette caractéristique" title="Supprimer cette caractéristique">
-                            <i class="bi bi-trash" aria-hidden="true"></i>
+
+                    <div class="col-md-2 d-grid">
+                        <button
+                            type="button"
+                            class="btn btn-outline-danger remove-characteristic"
+                        >
+                            Supprimer
                         </button>
                     </div>
+
+                    @error("caracteristiques.$index.unite")
+                        <div class="col-12">
+                            <div class="text-danger small">{{ $message }}</div>
+                        </div>
+                    @enderror
                 </div>
-            </div>
-        @endforeach
+            @endforeach
+        </div>
     </div>
 </div>
 
-{{-- Les noms des champs générés gardent la structure caracteristiques[index][attribut]. --}}
-<template id="caracteristiqueTemplate">
-    <div class="caracteristique-row">
-        <div class="row g-3 align-items-end">
-            <div class="col-md-4">
-                <label for="caracteristique_libelle___INDEX__" class="form-label">Caractéristique</label>
-                <input type="text" id="caracteristique_libelle___INDEX__"
-                       class="form-control" name="caracteristiques[__INDEX__][libelle]" placeholder="Ex. Internet">
-            </div>
-            <div class="col-md-4">
-                <label for="caracteristique_valeur___INDEX__" class="form-label">Valeur</label>
-                <input type="text" id="caracteristique_valeur___INDEX__"
-                       class="form-control" name="caracteristiques[__INDEX__][valeur]" placeholder="Ex. 200">
-            </div>
-            <div class="col-md-3">
-                <label for="caracteristique_unite___INDEX__" class="form-label">Unité</label>
-                <input type="text" id="caracteristique_unite___INDEX__"
-                       class="form-control" name="caracteristiques[__INDEX__][unite]" placeholder="Ex. Go">
-            </div>
-            <div class="col-md-1">
-                <button type="button" class="btn btn-soft text-danger w-100 supprimer-caracteristique"
-                        aria-label="Supprimer cette caractéristique" title="Supprimer cette caractéristique">
-                    <i class="bi bi-trash" aria-hidden="true"></i>
-                </button>
-            </div>
-        </div>
-    </div>
-</template>
+@once
+    @push('scripts')
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                const container = document.getElementById('characteristics-container');
+                const addButton = document.getElementById('add-characteristic');
 
-@push('styles')
-<style>
-    .characteristics-field{padding:20px;border:1px solid var(--border-color);border-radius:13px;background:#fafbfc}
-    .characteristics-heading{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-bottom:16px}
-    .characteristics-title{margin:0;font-size:14px;font-weight:800}
-    .characteristics-caption{margin:4px 0 0;color:var(--text-muted);font-size:12px}
-    .caracteristique-row{padding:17px;margin-bottom:11px;border:1px solid #e3e6ea;border-radius:11px;background:#fff}
-    .caracteristique-row:last-child{margin-bottom:0}
-    .caracteristique-row .form-label{margin-bottom:6px;font-size:11px}
-    .caracteristique-row .supprimer-caracteristique{min-height:44px}
-    @media(max-width:575.98px){.characteristics-heading{align-items:flex-start;flex-direction:column}}
-</style>
-@endpush
+                if (!container || !addButton) {
+                    return;
+                }
 
-@push('scripts')
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const container = document.getElementById('caracteristiquesContainer');
-        const bouton = document.getElementById('ajouterCaracteristique');
-        const template = document.getElementById('caracteristiqueTemplate');
-        if (!container || !bouton || !template) return;
+                const definitions = @json($definitionsCaracteristiques);
 
-        let index = Number(container.dataset.nextIndex);
+                function unitOptions(code, selected = null) {
+                    const units = definitions[code]?.unites ?? [];
 
-        bouton.addEventListener('click', function () {
-            // Un indice unique évite que deux lignes écrasent la même valeur lors de l'envoi.
-            const html = template.innerHTML.replaceAll('__INDEX__', String(index++));
-            container.insertAdjacentHTML('beforeend', html);
-            container.lastElementChild?.querySelector('input')?.focus();
-        });
+                    return units.map((unit) => {
+                        const isSelected = unit === selected ? ' selected' : '';
+                        return `<option value="${unit}"${isSelected}>${unit}</option>`;
+                    }).join('');
+                }
 
-        container.addEventListener('click', function (event) {
-            const suppression = event.target.closest('.supprimer-caracteristique');
-            if (!suppression || !container.contains(suppression)) return;
-            suppression.closest('.caracteristique-row')?.remove();
-            bouton.focus();
-        });
-    });
-</script>
-@endpush
+                function refreshIndexes() {
+                    container.querySelectorAll('.characteristic-row').forEach((row, index) => {
+                        row.querySelectorAll('[name]').forEach((field) => {
+                            field.name = field.name.replace(
+                                /caracteristiques\[\d+\]/,
+                                `caracteristiques[${index}]`
+                            );
+                        });
+                    });
+                }
+
+                function refreshUnits(row) {
+                    const codeSelect = row.querySelector('.characteristic-code');
+                    const unitSelect = row.querySelector('.characteristic-unit');
+
+                    if (!codeSelect || !unitSelect) {
+                        return;
+                    }
+
+                    const code = codeSelect.value;
+                    const defaultUnit = definitions[code]?.unite_defaut ?? null;
+
+                    unitSelect.innerHTML = unitOptions(code, defaultUnit);
+                }
+
+                container.addEventListener('change', (event) => {
+                    if (event.target.classList.contains('characteristic-code')) {
+                        refreshUnits(event.target.closest('.characteristic-row'));
+                    }
+                });
+
+                container.addEventListener('click', (event) => {
+                    const button = event.target.closest('.remove-characteristic');
+
+                    if (!button) {
+                        return;
+                    }
+
+                    button.closest('.characteristic-row').remove();
+                    refreshIndexes();
+                });
+
+                addButton.addEventListener('click', () => {
+                    const index = container.querySelectorAll('.characteristic-row').length;
+
+                    const typeOptions = Object.entries(definitions)
+                        .map(([code, definition]) =>
+                            `<option value="${code}">${definition.label}</option>`
+                        )
+                        .join('');
+
+                    container.insertAdjacentHTML('beforeend', `
+                        <div class="row g-2 align-items-end characteristic-row mb-2">
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Type</label>
+                                <select
+                                    class="form-select characteristic-code"
+                                    name="caracteristiques[${index}][code]"
+                                >
+                                    <option value="">Choisir...</option>
+                                    ${typeOptions}
+                                </select>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Valeur</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    class="form-control"
+                                    name="caracteristiques[${index}][valeur_numerique]"
+                                    placeholder="Ex. 40"
+                                >
+                            </div>
+
+                            <div class="col-md-2">
+                                <label class="form-label fw-semibold">Unité</label>
+                                <select
+                                    class="form-select characteristic-unit"
+                                    name="caracteristiques[${index}][unite]"
+                                >
+                                </select>
+                            </div>
+
+                            <div class="col-md-2 d-grid">
+                                <button
+                                    type="button"
+                                    class="btn btn-outline-danger remove-characteristic"
+                                >
+                                    Supprimer
+                                </button>
+                            </div>
+                        </div>
+                    `);
+                });
+            });
+        </script>
+    @endpush
+@endonce

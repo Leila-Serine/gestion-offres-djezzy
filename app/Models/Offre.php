@@ -2,58 +2,29 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Offre extends Model
 {
+    use HasFactory;
+
+    protected $table = 'offres';
+
     protected $primaryKey = 'id_offre';
 
     protected $fillable = [
         'nom_offre',
         'categorie',
         'prix',
-        'mode_stock_zero',
         'statut',
+        'mode_stock_zero',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'prix' => 'decimal:2',
-        ];
-    }
-
-    public function lignes(): HasMany
-    {
-        return $this->hasMany(
-            LigneCommande::class,
-            'id_offre',
-            'id_offre'
-        );
-    }
-
-    /**
-     * Alias conservé pour compatibilité avec les tests
-     * et le reste du projet.
-     */
-    public function lignesCommande(): HasMany
-    {
-        return $this->hasMany(
-            LigneCommande::class,
-            'id_offre',
-            'id_offre'
-        );
-    }
-
-    public function disponibilites(): HasMany
-    {
-        return $this->hasMany(
-            DisponibiliteOffre::class,
-            'id_offre',
-            'id_offre'
-        );
-    }
+    protected $casts = [
+        'prix' => 'decimal:2',
+    ];
 
     public function caracteristiques(): HasMany
     {
@@ -64,18 +35,21 @@ class Offre extends Model
         )->orderBy('ordre');
     }
 
-    public function scopeActive($query)
+    public function disponibilites(): HasMany
     {
-        return $query->where('statut', 'active');
+        return $this->hasMany(
+            DisponibiliteOffre::class,
+            'id_offre',
+            'id_offre'
+        )->orderBy('zone');
     }
 
-    public function estActive(): bool
+    public function lignesCommande(): HasMany
     {
-        return $this->statut === 'active';
-    }
-
-    public function estSuspendue(): bool
-    {
-        return $this->statut === 'suspendue';
+        return $this->hasMany(
+            LigneCommande::class,
+            'id_offre',
+            'id_offre'
+        );
     }
 }

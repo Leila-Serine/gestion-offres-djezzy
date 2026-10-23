@@ -6,275 +6,207 @@ use App\Models\Offre;
 use App\Services\OffreService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class OffreController extends Controller
 {
     public function __construct(
-        private OffreService $offreService
+        private readonly OffreService $offreService
     ) {
     }
 
-    /**
-     * Affiche la liste des offres.
-     *
-     * - Client : uniquement les offres actives.
-     * - Commercial : toutes les offres, y compris suspendues.
-     */
-    public function index(): View
+    public function index(Request $request): View
     {
-        $query = Offre::query()
-            ->with('disponibilites')
-            ->withCount('lignesCommande')
-            ->latest('id_offre');
+        $filters = $request->validate([
+            'categorie' => ['nullable', 'string', 'max:100'],
+            'prix_min' => ['nullable', 'numeric', 'min:0'],
+            'prix_max' => ['nullable', 'numeric', 'min:0'],
 
-        if (auth()->user()->role === 'client') {
-            $query->active();
-        }
+            'internet_min' => ['nullable', 'numeric', 'min:0'],
+            'internet_unite' => ['nullable', 'string', 'max:20'],
 
-        $offres = $query->get();
+            'duree_min' => ['nullable', 'numeric', 'min:0'],
+            'duree_unite' => ['nullable', 'string', 'max:20'],
 
-        return view(
-            'offres.index',
-            compact('offres')
-        );
-    }
-
-    /**
-     * Affiche les détails d'une offre.
-     */
-    public function show(Offre $offre): View
-    {
-        /*
-         * Un client ne doit pas pouvoir contourner le catalogue
-         * en tapant directement l'URL d'une offre suspendue.
-         */
-        if (
-            auth()->user()->role === 'client'
-            && $offre->statut !== 'active'
-        ) {
-            abort(404);
-        }
-
-        $offre->load([
-            'disponibilites',
-            'caracteristiques',
+            'zone' => ['nullable', 'string', 'max:100'],
+            'tri' => ['nullable', 'in:prix_asc,prix_desc,nom_asc,nom_desc'],
         ]);
 
-        return view(
-            'offres.show',
-            compact('offre')
-        );
+        $this->validateFilterUnit('internet', $filters['internet_unite'] ?? null);
+        $this->validateFilterUnit('duree', $filters['duree_unite'] ?? null);
+
+        $offres = $this->offreService->search($filters);
+
+        $categories = Offre::query()
+            ->whereNotNull('categorie')
+            ->where('categorie', '!=', '')
+            ->distinct()
+            ->orderBy('categorie')
+            ->pluck('categorie');
+
+        return view('offres.index', compact('offres', 'categories'));
     }
 
-    /**
-     * Affiche le formulaire de création.
-     */
     public function create(): View
     {
         return view('offres.create');
     }
 
-    /**
-     * Enregistre une nouvelle offre.
-     */
-    public function store(
-        Request $request
-    ): RedirectResponse {
+    public function store(Request $request): RedirectResponse
+    {
+        $validated = $this->validateOffre($request);
+
+        $this->offreService->create($validated);
+
+        return redirect()
+            ->route('offres.index')
+            ->with('success', 'Offre créée avec succès.');
+    }
+
+    public function show(Offre $offre): View
+    {
+        if (
+            auth()->check()
+            && auth()->user()->role === 'client'
+            && $offre->statut !== 'active'
+        ) {
+            abort(404);
+        }
+
+        $offre->load(['caracteristiques', 'disponibilites']);
+
+        return view('offres.show', compact('offre'));
+    }
+
+    public function edit(Offre $offre): View
+    {
+        $offre->load(['caracteristiques', 'disponibilites']);
+
+        return view('offres.edit', compact('offre'));
+    }
+
+    public function update(Request $request, Offre $offre): RedirectResponse
+    {
+        if ($request->filled('action_statut')) {
+            $validatedAction = $request->validate([
+                'action_statut' => ['required', 'in:suspendre,reactiver'],
+            ]);
+
+            $nouveauStatut = $validatedAction['action_statut'] === 'suspendre'
+                ? 'suspendue'
+                : 'active';
+
+            $offre->update([
+                'statut' => $nouveauStatut,
+            ]);
+
+            $message = $nouveauStatut === 'suspendue'
+                ? 'Offre suspendue avec succès.'
+                : 'Offre réactivée avec succès.';
+
+            return redirect()
+                ->route('offres.index')
+                ->with('success', $message);
+        }
+
+        $validated = $this->validateOffre($request);
+
+        $this->offreService->update($offre, $validated);
+
+        return redirect()
+            ->route('offres.index')
+            ->with('success', 'Offre mise à jour avec succès.');
+    }
+
+    public function destroy(Offre $offre): RedirectResponse
+    {
+        $this->offreService->delete($offre);
+
+        return redirect()
+            ->route('offres.index')
+            ->with('success', 'Offre supprimée avec succès.');
+    }
+
+    private function validateOffre(Request $request): array
+    {
         $validated = $request->validate([
-            'nom_offre' => [
-                'required',
-                'string',
-                'max:100',
-            ],
-
-            'categorie' => [
-                'required',
-                'string',
-                'max:20',
-            ],
-
-            'prix' => [
-                'required',
-                'numeric',
-                'min:0',
-            ],
-
+            'nom_offre' => ['required', 'string', 'max:150'],
+            'categorie' => ['required', 'string', 'max:100'],
+            'prix' => ['required', 'numeric', 'min:0'],
             'mode_stock_zero' => [
                 'required',
                 'in:bientot_disponible,masquee',
             ],
+            'statut' => ['nullable', 'in:active,suspendue'],
 
-            'caracteristiques' => [
+            'caracteristiques' => ['nullable', 'array'],
+            'caracteristiques.*.code' => [
                 'nullable',
-                'array',
+                'string',
+                'in:internet,duree,appels,sms,credit',
+            ],
+            'caracteristiques.*.valeur_numerique' => [
+                'nullable',
+                'numeric',
+                'min:0',
+            ],
+            'caracteristiques.*.unite' => [
+                'nullable',
+                'string',
+                'max:20',
             ],
 
-            'caracteristiques.*.libelle' => [
+            'disponibilites' => ['nullable', 'array'],
+            'disponibilites.*.zone' => [
                 'nullable',
                 'string',
                 'max:100',
             ],
-
-            'caracteristiques.*.valeur' => [
+            'disponibilites.*.quantite_disponible' => [
                 'nullable',
-                'string',
-                'max:255',
-            ],
-
-            'caracteristiques.*.unite' => [
-                'nullable',
-                'string',
-                'max:30',
+                'integer',
+                'min:0',
             ],
         ]);
 
-        $this->offreService->create(
-            $validated
-        );
-
-        return redirect()
-            ->route('offres.index')
-            ->with(
-                'success',
-                'Offre créée avec succès.'
-            );
-    }
-
-    /**
-     * Affiche le formulaire de modification.
-     */
-    public function edit(
-        Offre $offre
-    ): View {
-        $offre->load('caracteristiques');
-
-        return view(
-            'offres.edit',
-            compact('offre')
-        );
-    }
-
-    /**
-     * Met à jour une offre ou traite une action
-     * de suspension / réactivation.
-     */
-    public function update(
-        Request $request,
-        Offre $offre
-    ): RedirectResponse {
         /*
-         * On réutilise la route offres.update existante.
-         * Aucun ajout dans routes/web.php n'est nécessaire.
+         * Vérifie le couple type/unité.
+         * Exemple : Internet accepte Mo/Go/To, mais jamais Jours.
          */
-        if ($request->input('action_statut') === 'suspendre') {
-            $this->offreService->suspendre($offre);
+        foreach ($validated['caracteristiques'] ?? [] as $index => $row) {
+            $code = $row['code'] ?? null;
+            $unite = $row['unite'] ?? null;
 
-            return redirect()
-                ->route('offres.index')
-                ->with(
-                    'success',
-                    'Offre suspendue avec succès. Elle n’est plus visible par les clients.'
-                );
+            if (!$code || !$unite) {
+                continue;
+            }
+
+            $allowedUnits = config("offres.caracteristiques.$code.unites", []);
+
+            if (!in_array($unite, $allowedUnits, true)) {
+                throw ValidationException::withMessages([
+                    "caracteristiques.$index.unite"
+                        => "L'unité sélectionnée n'est pas valide pour ce type de caractéristique.",
+                ]);
+            }
         }
 
-        if ($request->input('action_statut') === 'reactiver') {
-            $this->offreService->reactiver($offre);
-
-            return redirect()
-                ->route('offres.index')
-                ->with(
-                    'success',
-                    'Offre réactivée avec succès.'
-                );
-        }
-
-        $validated = $request->validate([
-            'nom_offre' => [
-                'required',
-                'string',
-                'max:100',
-            ],
-
-            'categorie' => [
-                'required',
-                'string',
-                'max:20',
-            ],
-
-            'prix' => [
-                'required',
-                'numeric',
-                'min:0',
-            ],
-
-            'mode_stock_zero' => [
-                'required',
-                'in:bientot_disponible,masquee',
-            ],
-
-            'caracteristiques' => [
-                'nullable',
-                'array',
-            ],
-
-            'caracteristiques.*.libelle' => [
-                'nullable',
-                'string',
-                'max:100',
-            ],
-
-            'caracteristiques.*.valeur' => [
-                'nullable',
-                'string',
-                'max:255',
-            ],
-
-            'caracteristiques.*.unite' => [
-                'nullable',
-                'string',
-                'max:30',
-            ],
-        ]);
-
-        $this->offreService->update(
-            $offre,
-            $validated
-        );
-
-        return redirect()
-            ->route('offres.index')
-            ->with(
-                'success',
-                'Offre modifiée avec succès.'
-            );
+        return $validated;
     }
 
-    /**
-     * Supprime une offre uniquement si aucune commande
-     * ne l'utilise déjà.
-     */
-    public function destroy(
-        Offre $offre
-    ): RedirectResponse {
-        $deleted = $this->offreService->delete(
-            $offre
-        );
-
-        if (! $deleted) {
-            return redirect()
-                ->route('offres.index')
-                ->with(
-                    'error',
-                    'Cette offre ne peut pas être supprimée car elle est déjà utilisée dans une commande. Vous pouvez la suspendre.'
-                );
+    private function validateFilterUnit(string $code, ?string $unite): void
+    {
+        if ($unite === null || $unite === '') {
+            return;
         }
 
-        return redirect()
-            ->route('offres.index')
-            ->with(
-                'success',
-                'Offre supprimée avec succès.'
-            );
+        $allowedUnits = config("offres.caracteristiques.$code.unites", []);
+
+        if (!in_array($unite, $allowedUnits, true)) {
+            throw ValidationException::withMessages([
+                "{$code}_unite" => "Unité de filtre invalide.",
+            ]);
+        }
     }
 }

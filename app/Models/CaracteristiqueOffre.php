@@ -13,10 +13,17 @@ class CaracteristiqueOffre extends Model
 
     protected $fillable = [
         'id_offre',
+        'code',
         'libelle',
         'valeur',
+        'valeur_numerique',
         'unite',
         'ordre',
+    ];
+
+    protected $casts = [
+        'valeur_numerique' => 'decimal:2',
+        'ordre' => 'integer',
     ];
 
     public function offre(): BelongsTo

@@ -7,23 +7,20 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class DisponibiliteOffre extends Model
 {
-    /*
-     * Clé primaire personnalisée.
-     */
+    protected $table = 'disponibilite_offres';
+
     protected $primaryKey = 'id_disponibilite';
 
-    /*
-     * Champs autorisés pour la création / modification.
-     */
     protected $fillable = [
         'id_offre',
         'zone',
         'quantite_disponible',
     ];
 
-    /*
-     * Une disponibilité appartient à une offre.
-     */
+    protected $casts = [
+        'quantite_disponible' => 'integer',
+    ];
+
     public function offre(): BelongsTo
     {
         return $this->belongsTo(
