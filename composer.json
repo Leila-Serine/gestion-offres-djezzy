@@ -1,15 +1,21 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/laravel",
+    "name": "djezzy/gestion-offres",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
-    "keywords": ["laravel", "framework"],
-    "license": "MIT",
+    "description": "Plate-forme Espace Client / Espace Commercial — projet de stage ESI chez Djezzy",
+    "keywords": [
+        "laravel",
+        "gestion-offres",
+        "stage"
+    ],
+    "license": "proprietary",
     "require": {
         "php": "^8.5.4",
         "laravel/framework": "^13.17",
         "laravel/tinker": "^3.0",
-        "resend/resend-php": "^1.16"
+        "resend/resend-php": "^1.16",
+        "ext-pdo": "*",
+        "ext-pdo_mysql": "*"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

@@ -16,7 +16,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'email',
     'password',
     'role',
-    'php artisan migrate',
 ])]
 #[Hidden([
     'password',

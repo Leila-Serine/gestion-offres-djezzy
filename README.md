@@ -1,58 +1,100 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Plate-forme de gestion des offres
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Projet de stage ESI réalisé chez Djezzy par **Bourguig Leila Sérine** et **Chelmoun Asmaa**, groupe **SIT3**, option **ST**.
 
-## About Laravel
+Application Laravel avec deux espaces : client/revendeur et commercial. Elle couvre les offres et caractéristiques, les disponibilités par wilaya, les boutiques et justificatifs, les commandes multi-offres, les réclamations, les notifications et la validation des comptes clients.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Prérequis
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- PHP **8.5.4 ou ultérieur dans la branche 8.5**, Composer 2 ; extensions Laravel habituelles, PDO MySQL, Fileinfo et Mbstring.
+- MySQL 8.4, avec une base vide et un utilisateur autorisé à créer les tables.
+- Node.js 22.12+ ou 24+ et npm si vous compilez les ressources Vite.
+- Un service d'e-mail fonctionnel pour tester la vérification des comptes.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Installation locale
 
-## Learning Laravel
+1. Extraire le projet puis ouvrir un terminal à sa racine.
+2. Installer les dépendances PHP :
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+   ```bash
+   composer install
+   ```
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+3. Copier `.env.example` vers `.env` :
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+   ```powershell
+   Copy-Item .env.example .env
+   ```
 
-## Agentic Development
+   Sous Linux/macOS : `cp .env.example .env`.
+4. Dans `.env`, renseigner `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME` et `DB_PASSWORD`. Créer cette base MySQL avant les migrations. Le projet ne contient pas d'export de la base locale.
+5. Exécuter :
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+   ```bash
+   php artisan key:generate
+   php artisan migrate
+   php artisan app:create-commercial commercial@example.com --name="Commercial"
+   php artisan serve
+   ```
+
+   Remplacer l'adresse d'exemple. Le mot de passe est demandé sans être affiché. La commande refuse d'écraser ou de promouvoir un compte existant.
+6. Ouvrir <http://localhost:8000>. Connectez-vous avec le commercial créé.
+
+Les pages Blade actuelles utilisent Bootstrap depuis un CDN et leurs styles intégrés. Pour compiler les ressources Vite présentes dans le projet :
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+npm ci
+npm run build
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+## E-mails et file d'attente
 
-## Contributing
+Le modèle local utilise `MAIL_MAILER=log` et `QUEUE_CONNECTION=sync`. Les courriels sont alors écrits dans `storage/logs/laravel.log` ; ils ne sont pas réellement envoyés. Ce mode sert uniquement aux essais locaux.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Pour un vrai envoi, configurer SMTP ou Resend. Exemples de variables :
 
-## Code of Conduct
+```dotenv
+MAIL_MAILER=resend
+RESEND_API_KEY=
+MAIL_FROM_ADDRESS=
+MAIL_FROM_NAME="Gestion des offres"
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+L'adresse d'expédition doit être autorisée chez le prestataire. `APP_URL` doit correspondre à l'adresse publique HTTPS afin que les liens de vérification soient corrects.
 
-## Security Vulnerabilities
+Pour reprendre le fonctionnement asynchrone utilisé pendant le stage, définir `QUEUE_CONNECTION=database` et garder ce processus actif dans un second terminal ou un second service Railway :
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```bash
+php artisan queue:work --tries=3 --timeout=60
+```
 
-## License
+Avec `QUEUE_CONNECTION=sync`, aucun worker séparé n'est nécessaire, mais l'envoi attend la réponse du prestataire pendant la requête HTTP.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Données et démonstration
+
+Aucun compte avec un mot de passe prédéfini n'est créé par les migrations ou par `db:seed`. Créer le commercial avec la commande dédiée, puis créer les comptes clients depuis le formulaire public. Le parcours normal reste : vérification e-mail, puis validation du compte par le commercial.
+
+Le catalogue initial fourni est facultatif :
+
+```bash
+php artisan db:seed --class=OffresReellesSeeder
+```
+
+Ce seeder reprend les données déjà présentes dans le projet ; il ne certifie pas les offres commerciales actuellement vendues. Il réécrit les caractéristiques des quatre offres concernées. À utiliser uniquement pour initialiser une démonstration, avant d'adapter le catalogue. Il ne crée aucun stock régional : saisir les disponibilités dans l'espace commercial pour tester les commandes.
+
+Les justificatifs sont privés, dans `storage/app/private`. Ils sont servis par les contrôleurs après contrôle d'accès. Aucun lien public `storage:link` n'est nécessaire aux fonctionnalités actuelles.
+
+## Tests
+
+```bash
+composer test
+```
+
+Les tests utilisent SQLite en mémoire, une clé dédiée aux tests, un cache temporaire et aucun envoi réel d'e-mail. Ils n'utilisent pas votre base MySQL. L'extension PDO SQLite doit être disponible sur le poste de test.
+
+## Déploiement et remise
+
+- [Guide Railway et GitHub](docs/DEPLOIEMENT_ET_REMISE.md)
+- [Compte rendu du contrôle et des modifications](docs/CONTROLE_PROJET.md)
+
+Le code métier réalisé pendant le stage est destiné au cadre de partage convenu avec Djezzy. Les licences de Laravel et des dépendances demeurent celles de leurs auteurs. Aucun droit de publication publique du projet d'entreprise n'est accordé par ce README.

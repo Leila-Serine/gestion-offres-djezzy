@@ -84,10 +84,23 @@ class OffresReellesSeeder extends Seeder
             $offre->caracteristiques()->delete();
 
             foreach ($caracteristiques as $ordre => $caracteristique) {
+                // Renseigner aussi les champs utilisés par les filtres actuels.
+                // Les valeurs non numériques (ex. « Illimités ») restent du texte.
+                $code = match ($caracteristique['libelle']) {
+                    'Internet' => 'internet',
+                    'Validité' => 'duree',
+                    default => null,
+                };
+                $numericValue = $code !== null && is_numeric($caracteristique['valeur'])
+                    ? $caracteristique['valeur']
+                    : null;
+
                 $offre->caracteristiques()->create([
+                    'code' => $code,
+                    'valeur_numerique' => $numericValue,
                     'libelle' => $caracteristique['libelle'],
                     'valeur' => $caracteristique['valeur'],
-                    'unite' => $caracteristique['unite'],
+                    'unite' => $code === 'duree' ? 'Jours' : $caracteristique['unite'],
                     'ordre' => $ordre,
                 ]);
             }
